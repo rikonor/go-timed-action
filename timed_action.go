@@ -1,10 +1,8 @@
 package timedaction
 
-import (
-	"fmt"
-	"time"
-)
+import "time"
 
+// TimedAction is an action that will occur based on a timer
 type TimedAction struct {
 	Action    func()
 	Timer     *time.Timer
@@ -20,25 +18,22 @@ type timedActionStore struct {
 	store map[string]*TimedAction
 }
 
+// NewTimedActionStore creates a new in-memory TimedActionStore
 func NewTimedActionStore() TimedActionStore {
 	return &timedActionStore{store: make(map[string]*TimedAction)}
 }
 
-func (tas *timedActionStore) get(id string) (*TimedAction, error) {
+func (tas *timedActionStore) get(id string) (*TimedAction, bool, error) {
 	ta, ok := tas.store[id]
 	if !ok {
-		return nil, fmt.Errorf("no timed-action %s", id)
+		return nil, false, nil
 	}
 
-	return ta, nil
+	return ta, true, nil
 }
 
+// Set creates or overwrites a TimedAction
 func (tas *timedActionStore) Set(id string, ta *TimedAction) error {
-	x, _ := tas.get(id)
-	if x != nil {
-		return fmt.Errorf("timed-action %s already exists", id)
-	}
-
 	tas.store[id] = ta
 
 	go func() {
@@ -52,10 +47,14 @@ func (tas *timedActionStore) Set(id string, ta *TimedAction) error {
 	return nil
 }
 
+// Cancel cancels a TimedAction if it exists
 func (tas *timedActionStore) Cancel(id string) error {
-	ta, err := tas.get(id)
+	ta, ok, err := tas.get(id)
 	if err != nil {
 		return err
+	}
+	if !ok {
+		return nil
 	}
 
 	ta.cancelled = true
